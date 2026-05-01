@@ -76,7 +76,16 @@ RISK_PER_TRADE=0.01          # 1% of equity per trade
 MAX_OPEN_POSITIONS=5
 MAX_DAILY_LOSS=0.03          # halt if -3% on the day
 EXECUTION_MODE=manual        # manual = Telegram approval, auto = no prompt
+
+WEB_HOST=127.0.0.1
+WEB_PORT=8787
+WEB_AUTH_TOKEN=              # leave empty for localhost-only access
 ```
+
+> Anything in this file is just a default. Once the bot is running you can
+> change `RISK_PER_TRADE`, `WATCHLIST`, `EXECUTION_MODE`, R:R target, and
+> max daily loss live from the **Settings** tab in the dashboard. Saved
+> values are persisted to `settings.json` and override the env defaults.
 
 ---
 
@@ -88,8 +97,23 @@ python run.py
 
 Expected:
 
-- Console: `Bot started. Mode=manual Paper=True ...`
+- Console: `Dashboard: http://127.0.0.1:8787` and `Bot started. Mode=manual Paper=True ...`
 - Telegram: same message arrives in your chat.
+- Open <http://127.0.0.1:8787> in a browser. If `WEB_AUTH_TOKEN` is empty
+  and you're on localhost, just press OK on the token prompt. Otherwise
+  paste the token.
+
+The dashboard has four tabs:
+
+- **Dashboard** — live equity, day P&L, open positions, recent signals.
+- **Settings** — sliders/inputs for risk per trade (default 1%), max
+  daily loss, max open positions, R:R target, timeframe, execution mode,
+  and watchlist. Hit **Save settings** to apply immediately.
+- **Tutorial** — this document, rendered.
+- **Logs** — last 300 lines of `bot.log`.
+
+Top-right buttons: **Halt** (stop new entries), **Resume**, **Close All**
+(emergency flatten).
 
 Now send `/status` in Telegram — you should get equity + position info.
 

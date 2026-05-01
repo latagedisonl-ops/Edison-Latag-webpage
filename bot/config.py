@@ -1,4 +1,5 @@
 import os
+import secrets
 from dataclasses import dataclass
 from dotenv import load_dotenv
 
@@ -14,11 +15,14 @@ def _req(name: str) -> str:
 
 @dataclass(frozen=True)
 class Config:
+    # Credentials (env-only)
     alpaca_key: str
     alpaca_secret: str
     alpaca_base_url: str
     telegram_token: str
     telegram_chat_id: int
+
+    # Defaults for runtime settings (overridable from web UI)
     watchlist: list[str]
     timeframe: str
     risk_per_trade: float
@@ -26,8 +30,19 @@ class Config:
     max_daily_loss: float
     execution_mode: str
 
+    # Web server
+    web_host: str
+    web_port: int
+    web_auth_token: str
+    web_auth_token_was_generated: bool
+
     @classmethod
     def load(cls) -> "Config":
+        token = os.getenv("WEB_AUTH_TOKEN", "").strip()
+        generated = False
+        if not token:
+            token = secrets.token_urlsafe(24)
+            generated = True
         return cls(
             alpaca_key=_req("ALPACA_API_KEY"),
             alpaca_secret=_req("ALPACA_API_SECRET"),
@@ -42,6 +57,10 @@ class Config:
             max_open_positions=int(os.getenv("MAX_OPEN_POSITIONS", "5")),
             max_daily_loss=float(os.getenv("MAX_DAILY_LOSS", "0.03")),
             execution_mode=os.getenv("EXECUTION_MODE", "manual").lower(),
+            web_host=os.getenv("WEB_HOST", "127.0.0.1"),
+            web_port=int(os.getenv("WEB_PORT", "8787")),
+            web_auth_token=token,
+            web_auth_token_was_generated=generated,
         )
 
     @property

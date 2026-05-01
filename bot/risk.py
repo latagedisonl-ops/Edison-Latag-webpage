@@ -1,7 +1,7 @@
 """Risk management. The bot's most important module.
 
 Rules enforced:
-1. Per-trade risk capped at config.risk_per_trade of equity.
+1. Per-trade risk capped at settings.risk_per_trade of equity.
 2. Position size = (equity * risk_pct) / per-share-risk.
 3. Max concurrent open positions.
 4. Daily loss circuit breaker — bot halts new entries if hit.
@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path
 
-from .config import Config
+from .settings import RuntimeSettings
 from .strategy import Signal
 
 STATE_FILE = Path("state.json")
@@ -30,7 +30,10 @@ class DailyState:
 
 def _load_state() -> dict:
     if STATE_FILE.exists():
-        return json.loads(STATE_FILE.read_text())
+        try:
+            return json.loads(STATE_FILE.read_text())
+        except Exception:
+            return {}
     return {}
 
 
@@ -45,7 +48,7 @@ def get_daily_state(equity: float) -> DailyState:
         ds = DailyState(day=today, starting_equity=equity)
         _save_state(asdict(ds))
         return ds
-    return DailyState(**state)
+    return DailyState(**{**asdict(DailyState(day=today, starting_equity=equity)), **state})
 
 
 def update_daily_pnl(realized_delta: float) -> DailyState:
@@ -61,26 +64,23 @@ def set_halted(halted: bool) -> None:
     _save_state(state)
 
 
-def position_size(cfg: Config, equity: float, sig: Signal) -> int:
-    """Return integer share quantity, or 0 if trade is invalid."""
+def position_size(s: RuntimeSettings, equity: float, sig: Signal) -> int:
     if sig.risk_per_share <= 0:
         return 0
-    dollar_risk = equity * cfg.risk_per_trade
+    dollar_risk = equity * s.risk_per_trade
     qty = math.floor(dollar_risk / sig.risk_per_share)
-    # Cap notional to available buying power proxy: 25% of equity per single position
     max_notional = equity * 0.25
     qty = min(qty, math.floor(max_notional / sig.entry))
     return max(qty, 0)
 
 
-def can_open_new(cfg: Config, equity: float, open_positions: int) -> tuple[bool, str]:
-    if open_positions >= cfg.max_open_positions:
-        return False, f"Max open positions reached ({open_positions}/{cfg.max_open_positions})"
-
+def can_open_new(s: RuntimeSettings, equity: float, open_positions: int) -> tuple[bool, str]:
+    if open_positions >= s.max_open_positions:
+        return False, f"Max open positions reached ({open_positions}/{s.max_open_positions})"
     ds = get_daily_state(equity)
     if ds.halted:
-        return False, "Bot halted (daily loss limit hit). Reset with /resume."
-    loss_limit = -cfg.max_daily_loss * ds.starting_equity
+        return False, "Bot halted (use Resume to re-enable entries)."
+    loss_limit = -s.max_daily_loss * ds.starting_equity
     if ds.realized_pnl <= loss_limit:
         set_halted(True)
         return False, f"Daily loss limit hit: {ds.realized_pnl:.2f} <= {loss_limit:.2f}"

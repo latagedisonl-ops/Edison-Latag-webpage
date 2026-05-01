@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Trading Bot Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="title">
+      <h1>Trading Bot</h1>
+      <span id="paper-badge" class="badge">paper</span>
+    </div>
+    <div class="status-bar">
+      <div class="metric"><label>Equity</label><span id="equity">—</span></div>
+      <div class="metric"><label>Day P&amp;L</label><span id="pnl">—</span></div>
+      <div class="metric"><label>Mode</label><span id="mode">—</span></div>
+      <div class="metric"><label>Market</label><span id="market">—</span></div>
+      <div class="metric"><label>Halted</label><span id="halted">—</span></div>
+      <div class="metric"><label>Last scan</label><span id="last-scan">—</span></div>
+    </div>
+    <div class="actions">
+      <button id="halt-btn">Halt</button>
+      <button id="resume-btn">Resume</button>
+      <button id="closeall-btn" class="danger">Close All</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="dashboard">Dashboard</button>
+    <button class="tab" data-tab="settings">Settings</button>
+    <button class="tab" data-tab="tutorial">Tutorial</button>
+    <button class="tab" data-tab="logs">Logs</button>
+  </nav>
+
+  <main>
+    <section id="tab-dashboard" class="pane active">
+      <h2>Open Positions</h2>
+      <div class="table-wrap">
+        <table id="positions">
+          <thead><tr>
+            <th>Symbol</th><th>Qty</th><th>Avg Entry</th><th>Current</th>
+            <th>Unrealized $</th><th>Unrealized %</th>
+          </tr></thead>
+          <tbody><tr><td colspan="6" class="empty">No open positions</td></tr></tbody>
+        </table>
+      </div>
+
+      <h2>Recent Signals</h2>
+      <div class="table-wrap">
+        <table id="signals">
+          <thead><tr>
+            <th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th>
+            <th>Stop</th><th>TP</th><th>R:R</th><th>Qty</th><th>Status</th>
+          </tr></thead>
+          <tbody><tr><td colspan="9" class="empty">No signals yet</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="tab-settings" class="pane">
+      <form id="settings-form">
+        <fieldset>
+          <legend>Risk</legend>
+
+          <label class="row">
+            <span>Risk per trade</span>
+            <input type="range" id="risk_per_trade" min="0.0025" max="0.05" step="0.0025">
+            <output id="risk_per_trade_out"></output>
+          </label>
+          <p class="hint">Fraction of equity risked on each trade (stop-distance × shares).
+            Pros stay 0.25–1%. Above 2% is reckless.</p>
+
+          <label class="row">
+            <span>Max daily loss</span>
+            <input type="range" id="max_daily_loss" min="0.005" max="0.10" step="0.005">
+            <output id="max_daily_loss_out"></output>
+          </label>
+          <p class="hint">Day's realized loss that triggers an automatic halt.</p>
+
+          <label class="row">
+            <span>Max open positions</span>
+            <input type="number" id="max_open_positions" min="1" max="20">
+          </label>
+
+          <label class="row">
+            <span>Reward : Risk target</span>
+            <input type="number" id="rr_target" step="0.1" min="1" max="10">
+          </label>
+          <p class="hint">Take-profit set to <em>rr × stop-distance</em>. Lower = more wins, smaller wins.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Strategy</legend>
+
+          <label class="row">
+            <span>Timeframe</span>
+            <select id="timeframe">
+              <option>1Min</option><option>5Min</option><option>15Min</option>
+              <option>1Hour</option><option>1Day</option>
+            </select>
+          </label>
+
+          <label class="row">
+            <span>Execution mode</span>
+            <select id="execution_mode">
+              <option value="manual">Manual (Telegram approval)</option>
+              <option value="auto">Auto (no approval)</option>
+            </select>
+          </label>
+          <p class="hint warn">Auto mode submits orders without confirmation. Don't use until backtested.</p>
+
+          <label class="row col">
+            <span>Watchlist</span>
+            <textarea id="watchlist" rows="3" placeholder="AAPL, MSFT, NVDA, SPY"></textarea>
+          </label>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit">Save settings</button>
+          <span id="settings-msg"></span>
+        </div>
+      </form>
+    </section>
+
+    <section id="tab-tutorial" class="pane">
+      <article id="tutorial-content" class="markdown">Loading…</article>
+    </section>
+
+    <section id="tab-logs" class="pane">
+      <button id="refresh-logs">Refresh</button>
+      <pre id="log-output">Loading…</pre>
+    </section>
+  </main>
+
+  <footer>
+    <span>Reminder: no bot wins 90–100% of trades. Test on paper. Risk only what you can lose.</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,9 +1,8 @@
 """Telegram interface: signal alerts, manual approval, status commands."""
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
-from typing import Callable, Awaitable
+from typing import Awaitable, Callable
 
 from loguru import logger
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -15,6 +14,7 @@ from telegram.ext import (
 )
 
 from .config import Config
+from .settings import SettingsStore
 from .strategy import Signal
 
 
@@ -25,8 +25,9 @@ class PendingTrade:
 
 
 class TelegramIface:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, settings_store: SettingsStore):
         self.cfg = cfg
+        self.settings = settings_store
         self.app = Application.builder().token(cfg.telegram_token).build()
         self._pending: dict[str, PendingTrade] = {}
         self._on_approve: Callable[[PendingTrade], Awaitable[str]] | None = None
@@ -56,33 +57,35 @@ class TelegramIface:
         self.app.add_handler(CallbackQueryHandler(self._on_button))
 
     def _allowed(self, update: Update) -> bool:
-        return update.effective_chat and update.effective_chat.id == self.cfg.telegram_chat_id
+        return bool(update.effective_chat) and update.effective_chat.id == self.cfg.telegram_chat_id
 
     async def _cmd_start(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
         if not self._allowed(update):
             return
+        s = self.settings.get()
         await update.message.reply_text(
             "Trading bot online.\n"
             "Commands: /status /halt /resume /closeall\n"
-            f"Mode: {self.cfg.execution_mode} | Paper: {self.cfg.is_paper}"
+            f"Mode: {s.execution_mode} | Paper: {self.cfg.is_paper} | "
+            f"Risk: {s.risk_per_trade*100:.2f}%"
         )
 
-    async def _cmd_status(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
+    async def _cmd_status(self, update, _):
         if not self._allowed(update) or not self._status_cb:
             return
         await update.message.reply_text(await self._status_cb())
 
-    async def _cmd_halt(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
+    async def _cmd_halt(self, update, _):
         if not self._allowed(update) or not self._halt_cb:
             return
         await update.message.reply_text(await self._halt_cb())
 
-    async def _cmd_resume(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
+    async def _cmd_resume(self, update, _):
         if not self._allowed(update) or not self._resume_cb:
             return
         await update.message.reply_text(await self._resume_cb())
 
-    async def _cmd_closeall(self, update: Update, _: ContextTypes.DEFAULT_TYPE):
+    async def _cmd_closeall(self, update, _):
         if not self._allowed(update) or not self._closeall_cb:
             return
         await update.message.reply_text(await self._closeall_cb())
@@ -99,7 +102,7 @@ class TelegramIface:
             return
         if action == "approve" and self._on_approve:
             result = await self._on_approve(pending)
-            await q.edit_message_text(q.message.text + f"\n\nAPPROVED → {result}")
+            await q.edit_message_text(q.message.text + f"\n\nAPPROVED -> {result}")
         else:
             await q.edit_message_text(q.message.text + "\n\nREJECTED")
 
@@ -109,19 +112,18 @@ class TelegramIface:
         self._pending[key] = pending
         notional = pending.qty * sig.entry
         text = (
-            f"📡 SIGNAL: {sig.symbol} {sig.side.upper()}\n"
+            f"SIGNAL: {sig.symbol} {sig.side.upper()}\n"
             f"Entry: {sig.entry:.2f}  Stop: {sig.stop:.2f}  TP: {sig.take_profit:.2f}\n"
             f"R:R = {sig.rr:.2f}\n"
             f"Qty: {pending.qty} (~${notional:,.0f})\n"
             f"Reason: {sig.reason}"
         )
-        if self.cfg.execution_mode == "manual":
-            kb = InlineKeyboardMarkup(
-                [[
-                    InlineKeyboardButton("✅ Approve", callback_data=f"approve:{key}"),
-                    InlineKeyboardButton("❌ Reject", callback_data=f"reject:{key}"),
-                ]]
-            )
+        mode = self.settings.get().execution_mode
+        if mode == "manual":
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("Approve", callback_data=f"approve:{key}"),
+                InlineKeyboardButton("Reject", callback_data=f"reject:{key}"),
+            ]])
             await self.app.bot.send_message(self.cfg.telegram_chat_id, text, reply_markup=kb)
         else:
             await self.app.bot.send_message(self.cfg.telegram_chat_id, text + "\n\n(auto-executing)")
@@ -141,6 +143,15 @@ class TelegramIface:
         await self.app.updater.start_polling()
 
     async def stop(self) -> None:
-        await self.app.updater.stop()
-        await self.app.stop()
-        await self.app.shutdown()
+        try:
+            await self.app.updater.stop()
+        except Exception:
+            pass
+        try:
+            await self.app.stop()
+        except Exception:
+            pass
+        try:
+            await self.app.shutdown()
+        except Exception:
+            pass

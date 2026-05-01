@@ -1,59 +1,86 @@
-# Trading Signal Bot (Stocks) + Telegram
+# Trading Signal Bot — Web Dashboard + Telegram
 
-A realistic, risk-managed trading bot that scans a stock watchlist for
-multi-confluence technical signals (EMA trend + MACD cross + RSI), sizes
-positions by ATR-based stop distance, and sends alerts to Telegram.
+A risk-managed stock trading bot with two control surfaces:
 
-## ⚠️ Read this first
+- **Web dashboard** at `http://localhost:8787` — live equity, open positions,
+  recent signals, **adjustable settings (risk per trade, watchlist, mode,
+  R:R, daily-loss cap, etc.)**, embedded tutorial, and log viewer.
+- **Telegram bot** — push notifications for signals with **Approve / Reject**
+  buttons, plus `/status`, `/halt`, `/resume`, `/closeall` commands.
 
-- **No bot wins 90–100% of trades.** Anyone selling that is lying.
-  Profitable systems have ~40–60% winrate with reward:risk ≥ 1.5:1.
-- This bot defaults to **paper trading** and **manual approval** mode.
-  You approve every trade from Telegram. Don't change that until you've
-  watched it for weeks and run a backtest.
-- Stocks only via Alpaca. Crypto/forex/futures are not in scope —
-  every market needs different microstructure, hours, fees, and risk
-  rules. Adding them properly is a separate project.
-- Risk only money you can lose. Backtest before live. Past performance
-  doesn't predict future results.
+The dashboard and the bot run in the same process. Settings changed in the UI
+are persisted to `settings.json` and applied on the next scan.
 
-## What it does
+## ⚠️ Honest expectations
 
-- Scans your watchlist every minute during market hours.
-- A trade signal requires **all** of:
-  - EMA(20) above/below EMA(50) — trend filter
-  - MACD line crossing the signal line on the latest bar — momentum
-  - RSI(14) in 50–70 (long) or 30–50 (short) — not overbought/oversold
-- Stop = 1.5 × ATR(14). Take-profit = 2× the risk distance (R:R ≥ 2).
-- Position size = (equity × `RISK_PER_TRADE`) / per-share-risk.
-- Daily loss circuit breaker — auto-halt if losses exceed `MAX_DAILY_LOSS`.
-- Telegram approval buttons for every signal in `manual` mode.
+- **No bot wins 90–100% of trades.** Real systems sit at 40–60% winrate;
+  profitability comes from reward:risk and discipline, not winrate.
+- **Paper-trade by default.** Set `ALPACA_BASE_URL` to the paper endpoint
+  until you've watched the bot for weeks.
+- **Manual execution mode by default.** Every trade requires your tap on
+  Telegram. Switch to `auto` only after backtesting.
 
-See **[SETUP.md](SETUP.md)** for the full step-by-step tutorial:
-account creation → API keys → install → run.
+## What the strategy does
 
-## Commands (Telegram)
+A trade fires only when **all three** confluence checks agree:
 
-| command     | what it does                              |
-|-------------|-------------------------------------------|
-| `/start`    | Greeting + mode info                      |
-| `/status`   | Equity, day P&L, open positions           |
-| `/halt`     | Stop new entries                          |
-| `/resume`   | Resume after halt                         |
-| `/closeall` | Flatten every open position immediately   |
+- EMA(20) above/below EMA(50) — trend filter
+- MACD line crossing the signal line on the latest bar — momentum trigger
+- RSI(14) in 50–70 (long) or 30–50 (short) — not over-extended
+
+Stop = 1.5 × ATR(14). Take-profit = `R:R target` × stop distance (default 2.0).
+Position size = (equity × `risk_per_trade`) / per-share-risk, capped at 25%
+notional per position. A daily-loss circuit breaker auto-halts new entries.
+
+## Quick start
+
+```bash
+pip install -r requirements.txt
+cp .env.example .env       # fill in keys
+python run.py
+```
+
+Open <http://127.0.0.1:8787>. The first time, the page prompts for an
+**X-Auth-Token** — leave it blank if running locally without
+`WEB_AUTH_TOKEN`, or paste the token printed in the startup log.
+
+For the full tutorial (Alpaca account, Telegram bot, going live) read
+**[SETUP.md](SETUP.md)** — it's also rendered inside the dashboard's
+**Tutorial** tab.
+
+## Settings you can change live in the UI
+
+| setting              | range            | what it does                                            |
+|----------------------|------------------|---------------------------------------------------------|
+| `risk_per_trade`     | 0.25% – 5%       | fraction of equity risked per trade                     |
+| `max_daily_loss`     | 0.5% – 10%       | day's realized loss that halts new entries              |
+| `max_open_positions` | 1 – 20           | concurrent position cap                                 |
+| `rr_target`          | 1.0 – 10.0       | take-profit multiple of stop distance                   |
+| `timeframe`          | 1Min … 1Day      | bar size used for indicators                            |
+| `execution_mode`     | manual / auto    | manual = Telegram approval; auto = no confirmation      |
+| `watchlist`          | comma-separated  | symbols to scan                                         |
+
+Credentials (Alpaca keys, Telegram token, chat id) stay in `.env` — they
+are not editable from the UI on purpose.
 
 ## Project layout
 
 ```
 bot/
-  config.py         env loading
-  strategy.py       indicators + signal logic
-  risk.py           position sizing + circuit breaker
-  broker.py         Alpaca adapter (data + orders)
-  telegram_iface.py Telegram bot, signal cards w/ approve/reject
-  runner.py         async main loop
-run.py              entrypoint
-requirements.txt
+  config.py          env loading (credentials + defaults)
+  settings.py        mutable runtime settings (persisted JSON)
+  strategy.py        indicators + signal logic
+  risk.py            position sizing + daily circuit breaker
+  broker.py          Alpaca adapter (data + orders)
+  telegram_iface.py  Telegram bot, signal cards w/ approve/reject
+  runner.py          async scan loop + signal history
+  web.py             FastAPI dashboard (status, settings, logs, tutorial)
+web/
+  index.html         dashboard markup
+  style.css          dark theme
+  app.js             vanilla JS, polls API, renders tabs
+run.py               entrypoint (uvicorn → FastAPI → bot lifespan)
+SETUP.md             full setup tutorial (also rendered in-app)
 .env.example
-SETUP.md
+requirements.txt
 ```
