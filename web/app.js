@@ -125,6 +125,7 @@
       $("rr_target").value = s.rr_target;
       $("timeframe").value = s.timeframe;
       $("execution_mode").value = s.execution_mode;
+      $("strategy").value = s.strategy;
       $("watchlist").value = s.watchlist.join(", ");
     } catch (e) { console.error("settings load:", e.message); }
   }
@@ -148,6 +149,7 @@
       rr_target: parseFloat($("rr_target").value),
       timeframe: $("timeframe").value,
       execution_mode: $("execution_mode").value,
+      strategy: $("strategy").value,
       watchlist: $("watchlist").value,
     };
     try {

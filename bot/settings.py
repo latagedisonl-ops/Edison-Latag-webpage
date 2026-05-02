@@ -15,6 +15,7 @@ from .config import Config
 SETTINGS_FILE = Path("settings.json")
 VALID_TIMEFRAMES = ("1Min", "5Min", "15Min", "1Hour", "1Day")
 VALID_MODES = ("manual", "auto")
+VALID_STRATEGIES = ("confluence", "smc")
 
 
 @dataclass
@@ -26,6 +27,7 @@ class RuntimeSettings:
     max_daily_loss: float = 0.03
     execution_mode: str = "manual"
     rr_target: float = 2.0
+    strategy: str = "confluence"
 
 
 def _coerce(field_name: str, value: Any) -> Any:
@@ -57,6 +59,11 @@ def _coerce(field_name: str, value: Any) -> Any:
         v = str(value).lower()
         if v not in VALID_MODES:
             raise ValueError(f"execution_mode must be one of {VALID_MODES}")
+        return v
+    if field_name == "strategy":
+        v = str(value).lower()
+        if v not in VALID_STRATEGIES:
+            raise ValueError(f"strategy must be one of {VALID_STRATEGIES}")
         return v
     if field_name == "watchlist":
         if isinstance(value, str):

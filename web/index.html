@@ -95,6 +95,18 @@
           <legend>Strategy</legend>
 
           <label class="row">
+            <span>Strategy</span>
+            <select id="strategy">
+              <option value="confluence">Confluence (EMA + MACD + RSI)</option>
+              <option value="smc">SMC / ICT (BOS + sweep + FVG)</option>
+            </select>
+          </label>
+          <p class="hint">
+            <strong>Confluence</strong> — trend-following: enters when EMA trend, MACD cross, and RSI agree.<br>
+            <strong>SMC / ICT</strong> — looks for a Break of Structure, a liquidity sweep of a recent swing, and an unfilled Fair Value Gap before entering.
+          </p>
+
+          <label class="row">
             <span>Timeframe</span>
             <select id="timeframe">
               <option>1Min</option><option>5Min</option><option>15Min</option>

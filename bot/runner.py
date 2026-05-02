@@ -167,7 +167,9 @@ class Runner:
                     bars = await asyncio.to_thread(self.broker.bars, symbol)
                     if bars.empty:
                         continue
-                    sig = strategy.evaluate(symbol, bars, rr_target=s.rr_target)
+                    sig = strategy.evaluate(
+                        symbol, bars, strategy_name=s.strategy, rr_target=s.rr_target
+                    )
                     if not sig or sig.rr < 1.5:
                         continue
                     qty = risk.position_size(s, equity, sig)
@@ -198,7 +200,8 @@ class Runner:
         s = self.settings.get()
         await self.tg.notify(
             f"Bot started. Mode={s.execution_mode} Paper={self.cfg.is_paper} "
-            f"Risk={s.risk_per_trade*100:.2f}% Watchlist={','.join(s.watchlist)}"
+            f"Strategy={s.strategy} Risk={s.risk_per_trade*100:.2f}% "
+            f"Watchlist={','.join(s.watchlist)}"
         )
 
         try:

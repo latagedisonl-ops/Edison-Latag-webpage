@@ -20,15 +20,41 @@ are persisted to `settings.json` and applied on the next scan.
 - **Manual execution mode by default.** Every trade requires your tap on
   Telegram. Switch to `auto` only after backtesting.
 
-## What the strategy does
+## Strategies
 
-A trade fires only when **all three** confluence checks agree:
+Pick one from the **Settings** tab. Both share the same risk-management
+plumbing (ATR-based stops, position sizing, daily-loss halt).
+
+### `confluence` — trend-following (default)
+
+Trade fires only when **all three** agree:
 
 - EMA(20) above/below EMA(50) — trend filter
 - MACD line crossing the signal line on the latest bar — momentum trigger
 - RSI(14) in 50–70 (long) or 30–50 (short) — not over-extended
 
-Stop = 1.5 × ATR(14). Take-profit = `R:R target` × stop distance (default 2.0).
+Stop = 1.5 × ATR(14). Take-profit = `rr_target` × stop distance (default 2.0).
+
+### `smc` — Smart Money Concepts / ICT
+
+Looks for a textbook ICT-style entry: bias confirmed by a **Break of
+Structure**, then a **liquidity sweep** of a recent swing wick, then an
+**unfilled Fair Value Gap** in the new direction. All three required.
+
+- **Bias (BOS)** — last confirmed swing high/low broken by close.
+- **Liquidity sweep** — recent bar pierces a prior swing low (long setup)
+  or swing high (short setup) and closes back through it.
+- **FVG** — 3-bar imbalance in the bias direction, not yet rebalanced.
+- **Stop** — beyond the sweep wick (or far edge of the FVG) + 0.25 × ATR.
+- **TP** — next opposing untouched swing if it offers ≥ 1.5R, else
+  `rr_target` × risk.
+
+SMC is signal-rare on liquid mega-caps (it needs structure + a sweep +
+an unfilled gap to coincide). Expect 0–2 setups per scan. Lower-timeframe
+charts produce more — and more noise.
+
+### Shared mechanics
+
 Position size = (equity × `risk_per_trade`) / per-share-risk, capped at 25%
 notional per position. A daily-loss circuit breaker auto-halts new entries.
 
@@ -52,6 +78,7 @@ For the full tutorial (Alpaca account, Telegram bot, going live) read
 
 | setting              | range            | what it does                                            |
 |----------------------|------------------|---------------------------------------------------------|
+| `strategy`           | confluence / smc | which signal engine to scan with                        |
 | `risk_per_trade`     | 0.25% – 5%       | fraction of equity risked per trade                     |
 | `max_daily_loss`     | 0.5% – 10%       | day's realized loss that halts new entries              |
 | `max_open_positions` | 1 – 20           | concurrent position cap                                 |

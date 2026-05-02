@@ -133,6 +133,38 @@ sent to Alpaca. Tap **Reject** and nothing happens.
 
 ---
 
+## 4a. Picking a strategy
+
+Two are bundled. Switch from the **Settings** tab.
+
+### Confluence (default)
+
+Classic trend-following. Enters when EMA(20)/EMA(50) trend, a MACD cross,
+and RSI all line up. Plays best on liquid trending names.
+
+### SMC / ICT
+
+Smart Money Concepts. Tries to enter the way price-action traders do:
+*after* a stop hunt and *into* a fresh imbalance, in the direction of a
+new structural break.
+
+A long needs:
+1. **Bullish BOS** — most recent confirmed swing high taken out by close.
+2. **Liquidity sweep** — a recent bar wicks below a prior swing low and
+   closes back above it.
+3. **Bullish FVG** — an unfilled 3-bar imbalance below current price.
+
+Short setup is the mirror. Stop sits beyond the sweep wick + 0.25×ATR.
+Take-profit targets the next opposing swing (untouched liquidity); if
+that's too close to give 1.5R, it falls back to `rr_target × risk`.
+
+Heads up: SMC needs structure + sweep + unfilled gap to all exist on the
+same scan. On clean trending days you'll see signals; on chop you'll see
+none. That's the design — it's quality-over-quantity. It still loses
+trades, and it does **not** print money. Backtest before going live.
+
+---
+
 ## 5. Going from paper to live (do NOT skip)
 
 Before you flip a single dollar of real money:
